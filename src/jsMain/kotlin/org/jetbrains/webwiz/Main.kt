@@ -11,12 +11,14 @@ import org.jetbrains.webwiz.content.Header
 import org.jetbrains.webwiz.content.Intro
 import org.jetbrains.webwiz.content.PageFooter
 import org.jetbrains.webwiz.content.WizardSection
-import org.jetbrains.webwiz.generator.files.GradleWrapperJar
+import org.jetbrains.webwiz.generator.ProjectDirectoryFromResources
+import org.jetbrains.webwiz.generator.ProjectFileFromResources
 import org.jetbrains.webwiz.generator.files.Gradlew
 import org.jetbrains.webwiz.generator.generate
 import org.jetbrains.webwiz.models.ProjectInfo
 import org.jetbrains.webwiz.style.AppStylesheet
 import org.w3c.files.Blob
+import kotlin.js.Promise
 
 @OptIn(ExperimentalComposeWebWidgetsApi::class)
 fun main() {
@@ -37,21 +39,35 @@ fun main() {
 }
 
 private fun generateProject(project: ProjectInfo) {
-    window.fetch("./binaries/gradle-wrapper")
-        .then { response -> response.arrayBuffer() }
-        .then { gradleWrapperBlob ->
+    val files = project.generate()
+    val resourcePaths = files.filterIsInstance<ProjectFileFromResources>().map { it.resourcePath }
+
+    Promise
+        .all(resourcePaths.map { window.fetch(it) }.toTypedArray())
+        .then { responses -> Promise.all(responses.map { it.arrayBuffer() }.toTypedArray()) }
+        .then { resourceBlobs ->
             val zip = JSZip()
             project.generate().forEach { file ->
                 when (file) {
-                    is GradleWrapperJar -> zip.file(
-                            file.path,
-                            gradleWrapperBlob
-                    )
                     is Gradlew -> zip.file(
                         file.path,
                         file.content,
                         js("""{unixPermissions:"774"}""") //execution rights
                     )
+                    is ProjectDirectoryFromResources -> {
+                        JSZip().loadAsync(resourceBlobs[resourcePaths.indexOf(file.resourcePath)]).then { directoryZip ->
+                            directoryZip.forEach { relativePath, unzippedFile ->
+                                zip.file(file.path, unzippedFile)
+                            }
+
+                        }
+                    }
+                    is ProjectFileFromResources -> {
+                        zip.file(
+                            file.path,
+                            resourceBlobs[resourcePaths.indexOf(file.resourcePath)]
+                        )
+                    }
                     else -> zip.file(
                         file.path,
                         file.content

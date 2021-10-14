@@ -6,7 +6,8 @@ enum class GradlePlugin(
     val userName: String
 ) {
     PUBLISH(emptySet(), emptySet(), "Maven Publish"),
-    APPLICATION(setOf(Target.JVM), setOf(Target.ANDROID), "JVM Application");
+    APPLICATION(setOf(Target.JVM), setOf(Target.ANDROID), "JVM Application"),
+    APPLE(setOf(Target.IOS), emptySet(), "AppCode KMM Application");
 
     fun canBeApplied(targets: Set<Target>): Boolean =
         targets.containsAll(mandatory) && !targets.any { it in forbidden }

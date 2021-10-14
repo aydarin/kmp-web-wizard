@@ -4,12 +4,8 @@ import org.jetbrains.webwiz.generator.files.*
 import org.jetbrains.webwiz.models.GradlePlugin
 import org.jetbrains.webwiz.models.ProjectInfo
 import org.jetbrains.webwiz.models.Target.ANDROID
+import org.jetbrains.webwiz.models.Target.IOS
 import org.jetbrains.webwiz.models.isNativeTargetPresent
-
-interface ProjectFile {
-    val path: String
-    val content: String
-}
 
 fun ProjectInfo.generate(): List<ProjectFile> = mutableListOf<ProjectFile>().apply {
     val info = this@generate.normalize()
@@ -36,6 +32,10 @@ fun ProjectInfo.generate(): List<ProjectFile> = mutableListOf<ProjectFile>().app
 
     if (info.gradlePlugins.contains(GradlePlugin.APPLICATION)) {
         add(ApplicationKt(info))
+    }
+
+    if (info.gradlePlugins.contains(GradlePlugin.APPLE)) {
+        add(AppleIOSAppDirectory())
     }
 
     if (info.targets.contains(ANDROID)) {
